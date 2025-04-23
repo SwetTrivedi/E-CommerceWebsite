@@ -41,6 +41,7 @@ class subcategory(models.Model):
     
 
 class myproduct(models.Model):
+    seller = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True,blank=True)
     product_category=models.ForeignKey(Category,on_delete=models.CASCADE)
     subcategory_name=models.ForeignKey(subcategory,on_delete=models.CASCADE)
     veg_name=models.CharField(max_length=200,null=True)

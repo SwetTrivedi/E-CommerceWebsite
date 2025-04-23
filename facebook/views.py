@@ -5,21 +5,20 @@ from django.shortcuts import  redirect
 import random
 from django.core.mail import send_mail
 from django.contrib.auth.decorators import login_required
-from .models import CustomUser,UserOTP
-from .forms import Myform ,OTPForm
-from .models import subcategory,myproduct,Category
-from.task import send_seller_status_email
+from .models import CustomUser,UserOTP,Category,myproduct,subcategory
+from .forms import Myform ,OTPForm,MyProductForm
+from .task import send_seller_status_email
 def home(request):
-    data=Category.objects.all().order_by('-id')
+    data=Category.objects.all().order_by('-id')[0:18]
     md={"cdata":data}
     return render(request, 'home.html',md)
 
 def about(request):
     return render(request,'aboutus.html')
 
+
 def generate_otp():
     return str(random.randint(100000, 999999))
-
 
 
 def verify_otp(request):
@@ -42,8 +41,6 @@ def verify_otp(request):
                         user.is_active = True
                         user.save()
                         real_otp.delete()
-                        messages.success(request, "Otp Verified.")
- 
                         return redirect('login')
                     else:
                         messages.error(request, "Invalid OTP. Please try again.")
@@ -64,7 +61,7 @@ def verify_otp(request):
         return redirect('verify_otp')  
 
     return render(request, 'verify_otp.html', {'form': form})
-# 
+
 
 def register_user(request):
     if request.method == "POST":
@@ -169,19 +166,39 @@ def user_login(request):
     return render(request, 'login.html', {'form': form})
 
 
+def seller_required(view_func):
+    def wrapper(request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.user_type == 'seller':
+            return view_func(request, *args, **kwargs)
+        return redirect('login')
+    return wrapper
+
+def admin_required(view_func):
+    def wrapper(request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.user_type == 'admin':
+            return view_func(request, *args, **kwargs)
+        return redirect('login')
+    return wrapper
+
+
+
 @login_required
+@seller_required
 def seller_dashboard(request):
-    return render(request, 'seller_dashboard.html')
+    products = myproduct.objects.filter(seller=request.user)
+    return render(request, 'seller_dashboard.html', {'products': products})
 
 @login_required
 def customer_dashboard(request):
     return render(request, 'customer_dashboard.html')
 
+@admin_required
 @login_required
 def admin_dashboard(request):
     sellers = CustomUser.objects.filter(user_type='seller')
     customers = CustomUser.objects.filter(user_type='customer')
-    return render(request, 'admin_dashboard.html',{'sellers': sellers,'customers': customers})
+    products = myproduct.objects.all()
+    return render(request, 'admin_dashboard.html',{'sellers': sellers,'customers': customers,'products': products})
 
 @login_required
 def approve_seller(request, seller_id):
@@ -221,20 +238,11 @@ def delete_customer(request, customer_id):
 
     customer = get_object_or_404(CustomUser, id=customer_id, user_type='customer')
     customer.delete()
-    return redirect('admin_dashboard')
-
-
-
-
-
-
+    return redirect('admin_dashboard')  
 
 def user_logout(request):
     logout(request)
     return redirect('login')
-
-
-from .models import subcategory,myproduct
 
 def product(request):
     catid=request.GET.get('cid')
@@ -250,6 +258,38 @@ def product(request):
     return render(request,'product.html',md)
 
 
-def mycartu(request):
-    user=request.objects.get('user')
-    return render(request,'mycart.html',{'user':user})
+@login_required
+@seller_required
+def add_product(request):
+    form = MyProductForm(request.POST or None, request.FILES or None)
+    if form.is_valid():
+        product = form.save(commit=False)
+        product.seller = request.user
+        product.save()
+        return redirect('seller_dashboard')
+    return render(request, 'product_form.html', {'form': form})
+
+@login_required
+@seller_required
+def edit_product(request, pk):
+    product = get_object_or_404(myproduct, pk=pk, seller=request.user)
+    form = MyProductForm(request.POST or None, request.FILES or None, instance=product)
+    if form.is_valid():
+        form.save()
+        return redirect('seller_dashboard')
+    return render(request, 'product_form.html', {'form': form,'is_edit': True})
+
+@login_required
+@seller_required
+def delete_product(request, pk):
+    product = get_object_or_404(myproduct, pk=pk, seller=request.user)
+    product.delete()
+    return redirect('seller_dashboard')
+
+
+@login_required
+@admin_required
+def delete_product_admin(request, pk):
+    product = get_object_or_404(myproduct, pk=pk)
+    product.delete()
+    return redirect('admin_dashboard')

@@ -1,6 +1,6 @@
 from django import forms
 from captcha.fields import CaptchaField
-
+from .models import myproduct
 class OTPForm(forms.Form):
     otp = forms.CharField(
         label="Enter OTP",
@@ -12,10 +12,7 @@ class Myform(forms.Form):
     captcha=CaptchaField()
 
 
-from django import forms
-from .models import myproduct
-
-class ProductForm(forms.ModelForm):
+class MyProductForm(forms.ModelForm):
     class Meta:
         model = myproduct
-        fields = ['veg_name', 'price', 'product_quantity', 'product_pic']
+        exclude= ['seller']
