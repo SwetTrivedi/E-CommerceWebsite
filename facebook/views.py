@@ -8,19 +8,6 @@ from django.contrib.auth.decorators import login_required
 from .models import CustomUser,UserOTP,Category,myproduct,subcategory
 from .forms import Myform ,OTPForm,MyProductForm
 from .task import send_seller_status_email
-from twilio.rest import Client
-from django.conf import settings
-def send_otp_via_sms(phone_number, otp):
-    client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-    message = client.messages.create(
-        body=f"Your OTP is {otp}",
-        from_=settings.TWILIO_PHONE_NUMBER,
-        to=phone_number
-    )
-    return message.sid
-
-
-
 def home(request):
     data=Category.objects.all().order_by('-id')[0:18]
     md={"cdata":data}
@@ -82,7 +69,6 @@ def register_user(request):
         email = request.POST['email']
         password = request.POST['password']
         role = request.POST['role']
-        phone = request.POST.get('phone')
 
         if role == 'customer':
             user = CustomUser.objects.create_user(
@@ -112,12 +98,6 @@ def register_user(request):
                 user_type='seller',
                 is_verified=False 
             )
-            otp = generate_otp()
-            UserOTP.objects.create(user=user, otp=otp)
-            send_otp_via_sms(phone, otp)  # 👈 Twilio se SMS OTP bhejna
-            request.session['username'] = user.username
-            messages.success(request, "OTP sent to your phone.")
-            return redirect('verify_otp')
             return HttpResponse("Seller registered successfully. Please wait for admin verification.")
 
         elif role == 'admin':
@@ -208,9 +188,9 @@ def seller_dashboard(request):
     products = myproduct.objects.filter(seller=request.user)
     return render(request, 'seller_dashboard.html', {'products': products})
 
-# @login_required
-# def customer_dashboard(request):
-#     return render(request, 'customer_dashboard.html')
+@login_required
+def customer_dashboard(request):
+    return render(request, 'customer_dashboard.html')
 
 @admin_required
 @login_required
@@ -313,23 +293,3 @@ def delete_product_admin(request, pk):
     product = get_object_or_404(myproduct, pk=pk)
     product.delete()
     return redirect('admin_dashboard')
-
-@login_required
-def customer_dashboard(request):
-    user = request.user
-    
-    if request.method == 'POST':
-        user.username = request.POST.get('username')
-        user.email = request.POST.get('email')
-        user.phone = request.POST.get('phone')
-        
-        password = request.POST.get('password')
-        if password:
-            user.set_password(password)
-
-        user.save()
-    rdata = None
-    if request.user.is_authenticated:
-        rdata = CustomUser.objects.get(username=request.user.username)
-    md = {"rdata": rdata}
-    return render(request, 'customer_dashboard.html', md)

@@ -9,9 +9,7 @@ class CustomUser(AbstractUser):
         ('customer', 'Customer'),
     )
     user_type = models.CharField(max_length=10, choices=USER_ROLES)
-    is_verified = models.BooleanField(default=False)
-    phone = models.CharField(max_length=15, null=True, blank=True)
-
+    is_verified = models.BooleanField(default=False)  
     def __str__(self):
         return f"{self.username} ({self.user_type})"
 
