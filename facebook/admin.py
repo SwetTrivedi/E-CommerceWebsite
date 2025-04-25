@@ -4,17 +4,23 @@ from .models import CustomUser,Category,subcategory,myproduct
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
-    list_display = ('id','username', 'email', 'user_type', 'is_verified', 'is_staff', 'is_superuser')
+    list_display = ('id', 'username', 'email', 'user_type', 'is_verified', 'is_profile_verified', 'is_staff', 'is_superuser')
     list_filter = ('user_type', 'is_verified', 'is_staff')
     search_fields = ('username', 'email')
     ordering = ('username',)
 
     fieldsets = UserAdmin.fieldsets + (
-        ('Extra Info', {'fields': ('user_type', 'is_verified', 'phone', 'address')}),
+        ('Extra Info', {'fields': ('user_type', 'is_verified', 'is_profile_verified', 'phone')}),
+    )
+    
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ('Extra Info', {
+            'fields': ('user_type', 'is_verified', 'is_profile_verified', 'phone')
+        }),
     )
 
+# Register the CustomUserAdmin
 admin.site.register(CustomUser, CustomUserAdmin)
-
 
 
 @admin.register(Category)

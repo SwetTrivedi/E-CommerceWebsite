@@ -20,4 +20,5 @@ urlpatterns = [
     path('seller/edit/<int:pk>/', views.edit_product, name='edit_product'),
     path('seller/delete/<int:pk>/', views.delete_product, name='delete_product'),
     path('admin/delete/<int:pk>/', views.delete_product_admin, name='delete_product_admin'),
+    path('verify-profile/<int:pk>/', views.verify_profile_update, name='verify_profile_update'),
 ]

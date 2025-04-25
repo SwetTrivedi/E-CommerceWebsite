@@ -91,7 +91,7 @@ def register_user(request):
                 email=email,
                 password=password,
                 user_type='customer',
-                is_verified=True  
+                is_verified=False  # Initially unverified
             )
             otp = generate_otp()
             UserOTP.objects.create(user=user, otp=otp)
@@ -111,15 +111,14 @@ def register_user(request):
                 email=email,
                 password=password,
                 user_type='seller',
-                is_verified=False 
+                is_verified=False  # Initially unverified
             )
-            otp = generate_otp() 
+            otp = generate_otp()
             UserOTP.objects.create(user=user, otp=otp)
             send_otp_via_sms(phone_number, otp)
             request.session['username'] = user.username
             messages.success(request, "OTP sent to your phone.")
             return redirect('verify_otp')
-            return HttpResponse("Seller registered successfully. Please wait for admin verification.")
 
         elif role == 'admin':
             user = CustomUser.objects.create_superuser(
@@ -145,7 +144,7 @@ def user_login(request):
         if form.is_valid():
             username = request.POST.get('username')
             password = request.POST.get('password')
-            role = request.POST.get('role')  
+            role = request.POST.get('role')
 
             user = authenticate(request, username=username, password=password)
 
@@ -156,17 +155,13 @@ def user_login(request):
                         'error': 'Invalid role selected for this account.'
                     })
 
+                login(request, user)
+
                 if role == 'seller':
-                    if not user.is_verified:
-                        return HttpResponse("Seller account not verified by admin yet.")
-                    else:
-                        login(request, user)
-                        return redirect('seller_dashboard')
+                    return redirect('seller_dashboard')
                 elif role == 'customer':
-                    login(request, user)
                     return redirect('customer_dashboard')
                 elif role == 'admin':
-                    login(request, user)
                     return redirect('admin_dashboard')
                 else:
                     return render(request, 'login.html', {
@@ -185,6 +180,7 @@ def user_login(request):
             })
 
     return render(request, 'login.html', {'form': form})
+
 
 
 def seller_required(view_func):
@@ -209,9 +205,6 @@ def seller_dashboard(request):
     products = myproduct.objects.filter(seller=request.user)
     return render(request, 'seller_dashboard.html', {'products': products})
 
-@login_required
-def customer_dashboard(request):
-    return render(request, 'customer_dashboard.html')
 
 @admin_required
 @login_required
@@ -314,3 +307,59 @@ def delete_product_admin(request, pk):
     product = get_object_or_404(myproduct, pk=pk)
     product.delete()
     return redirect('admin_dashboard')
+
+
+@login_required
+def customer_dashboard(request):
+    user = request.user
+
+    if request.method == 'POST':
+        if not user.is_profile_verified:
+            messages.error(request, 'Please verify your profile update before making any further changes.')
+            return redirect('customer_dashboard')
+
+        user.username = request.POST.get('name')
+        user.email = request.POST.get('email')
+        user.phone = request.POST.get('phone')
+
+        password = request.POST.get('password')
+        if password:
+            user.set_password(password)
+
+        user.save()
+
+        messages.success(request, 'Profile updated successfully!')
+
+   
+    rdata = CustomUser.objects.get(username=request.user.username)
+    return render(request, 'customer_dashboard.html', {'rdata': rdata})
+
+
+
+@login_required
+def verify_profile_update(request, pk):
+    try:
+        user = CustomUser.objects.get(pk=pk)
+        
+        if user.is_profile_verified:
+            messages.info(request, 'Your profile is already verified.')
+            return redirect('customer_dashboard')
+
+       
+        user.is_profile_verified = True
+        user.save()
+
+        
+        send_mail(
+            subject="Profile Updated Successfully",
+            message=f"Hi {user.username},\n\nYour profile has been successfully updated!",
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=[user.email],
+        )
+
+        messages.success(request, 'Your profile has been successfully verified and updated!')
+        return redirect('customer_dashboard')
+
+    except CustomUser.DoesNotExist:
+        messages.error(request, 'User not found')
+        return redirect('home')

@@ -2,5 +2,89 @@
 {% load static %}
 {% block content %}
 <div class="col-sm-5" style="margin-top:50px;">
-<h2>Welcome Customer {{ request.user.username }}</h2>
+
+
+<style>
+    .iconN{
+    border:1px solid var(--txtcolor)!important;
+    height:35px;
+    width:35px;
+    text-align:center;
+    line-height:35px;
+    }
+    .form-control{
+    height:45px;
+    width:400px;
+    margin-bottom:.8;
+    }
+    #upform{
+    display:none;
+    }
+    .head{
+    Background:#1C768F;
+    }
+    #p1{
+     box-shadow:3px 10px 5px 10px #032539;
+     transform:scale(1.1);
+    transform:translateY(15px);
+    transition:all 1s;
+    border-right:5px groove white;
+    border-bottom:5px groove white;
+   }
+    #b:hover{
+    border:2px solid white;
+    transform:scale(1.1);
+    transition:all 1s;
+    }
+</style>
+<script>
+    function demo()
+    {
+    document.getElementById('upform').style.display="block";
+    }
+</script>
+<div class="text-center fs-2">
+    My <b class="txt-mycolor">Profile<i class="fa-solid fa-user"></i></b>
+</div>
+
+
+        {% if rdata %}
+        <div class="card my-5 bg-info" id="p1">
+  <div class="row g-0">
+    <div class="col-md-8">
+      <div class="card-body p-5 mx-2 mt-3">
+        <p class="card-text fs-5" style="font-family:STSong;">
+            <i class="fa-solid fa-user iconN"></i>&nbsp;&nbsp;&nbsp;&nbsp;{{rdata.username}}<br/>
+            <i class="fa-solid fa-envelope iconN"></i>&nbsp;&nbsp;&nbsp;&nbsp;{{rdata.email}}<br/>
+            <i class="fa-solid fa-phone-volume iconN"></i>&nbsp;&nbsp;&nbsp;&nbsp;{{rdata.phone}}<br/>
+            {% comment %} <i class="fa-solid fa-lock iconN"></i>&nbsp;&nbsp;&nbsp;&nbsp;{{rdata.passwd}}<br/> {% endcomment %}
+            <br/>
+
+      </div>
+    </div>
+       <center><a href="#" onclick="demo()" class="btn btn-sm bg-mycolor text-light fs-5" id="b">Edit Profile <i class="fa-solid fa-pen-to-square"></i></a></p></center>
+  </div>
+</div>
+{% endif %}
+    </div>
+</div>
+<div class="row py-3 ,mt-3" id="upform" style="background:#e3e3e3;">
+        <div class="col-sm-7 mx-auto">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                <b style="font-family:compact;font-size:20px;">Name</b><input type="text" required name="name" placeholder="Name" class="form-control"/>
+                <b style="font-family:compact;font-size:20px;">Email</b><input type="text" required name="email" placeholder="Name" class="form-control"/>
+                <b style="font-family:compact;font-size:20px;">Mobile</b><input type="text" required name="mobile" placeholder="Mobile" class="form-control"/>
+                <b style="font-family:compact;font-size:20px;">Password</b><input type="password" required name="passwd" placeholder="Password" class="form-control"/>
+                        {% comment %} <input type="submit" value="SAVE" class="btn bg-mycolor text-light mb-5 mt-2"/> {% endcomment %}
+                        {% if not rdata.is_profile_verified %}
+                        <a href="{% url 'verify_profile_update' pk=rdata.pk %}" class="btn btn-sm bg-mycolor text-light fs-5">Verify Profile Update</a>
+                    {% endif %}
+                    
+                 </form>
+                </div>
+    </div>
+</div>
+
+
 {% endblock content %}
