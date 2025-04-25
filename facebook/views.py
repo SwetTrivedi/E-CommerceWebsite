@@ -8,6 +8,20 @@ from django.contrib.auth.decorators import login_required
 from .models import CustomUser,UserOTP,Category,myproduct,subcategory
 from .forms import Myform ,OTPForm,MyProductForm
 from .task import send_seller_status_email
+from twilio.rest import Client
+from django.conf import settings
+
+
+def send_otp_via_sms(phone_number, otp):
+    client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+    message = client.messages.create(
+        body=f"Your OTP is {otp}",
+        from_=settings.TWILIO_PHONE_NUMBER,
+        to=phone_number
+    )
+    return message.sid
+
+
 def home(request):
     data=Category.objects.all().order_by('-id')[0:18]
     md={"cdata":data}
@@ -69,6 +83,7 @@ def register_user(request):
         email = request.POST['email']
         password = request.POST['password']
         role = request.POST['role']
+        phone_number = request.POST.get('phone')
 
         if role == 'customer':
             user = CustomUser.objects.create_user(
@@ -98,6 +113,12 @@ def register_user(request):
                 user_type='seller',
                 is_verified=False 
             )
+            otp = generate_otp() 
+            UserOTP.objects.create(user=user, otp=otp)
+            send_otp_via_sms(phone_number, otp)
+            request.session['username'] = user.username
+            messages.success(request, "OTP sent to your phone.")
+            return redirect('verify_otp')
             return HttpResponse("Seller registered successfully. Please wait for admin verification.")
 
         elif role == 'admin':
