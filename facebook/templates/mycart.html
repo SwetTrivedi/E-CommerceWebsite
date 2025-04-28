@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block content %}
-{% if not request.user.is_authenticated %}
+{% if not request.session.user %}
 <script>
-    alert("You have to log in first to add a product!");
-    window.location.href = "/login/";
+    alert("You Have to LogIn First")
+    location.href="/login/"
 </script>
 {% endif %}
-{% endblock %}
+{% endblock content %}

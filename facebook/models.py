@@ -28,6 +28,7 @@ class UserOTP(models.Model):
     
 
 class Category(models.Model):
+    seller = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True,blank=True)
     cname=models.CharField(max_length=200,null=True)
     cpic=models.ImageField(upload_to='static/category/',null=True)
     cdate=models.DateField()
@@ -53,3 +54,42 @@ class myproduct(models.Model):
     total_discount=models.IntegerField()
     product_quantity=models.CharField(max_length=200)
     pdate=models.DateField()
+
+
+
+class Cart(models.Model):
+    user=models.ForeignKey(CustomUser,on_delete=models.CASCADE)
+    product_name=models.CharField(max_length=200)
+    quantity=models.IntegerField(null=True)
+    price=models.IntegerField(null=True)
+    total_price=models.FloatField(null=True)
+    product_picture=models.CharField(max_length=300,null=True)
+    pw=models.CharField(max_length=200,null=True)
+    added_date=models.DateField()
+    
+    def _str_(self):
+        return f"{self.product_name} x {self.quantity} for {self.user}"
+
+class Myorders(models.Model):
+    STATUS_CHOICES = [
+        ("Pending", "Pending"),
+        ("Accepted", "Accepted"),
+        ("Delivered", "Delivered"),
+        ("Cancelled", "Cancelled"),
+    ]
+    user=models.ForeignKey(CustomUser,on_delete=models.CASCADE)
+    product_name = models.CharField(max_length=200)
+    quantity = models.IntegerField(null=True)
+    price = models.IntegerField(null=True)
+    total_price = models.FloatField(null=True)
+    product_picture = models.CharField(max_length=300, null=True)
+    order_date = models.DateField(null=True)
+    status=models.CharField(max_length=200,null=True,default="Pending")
+    address = models.TextField(null=True)
+    city = models.CharField(max_length=100, null=True)
+    state = models.CharField(max_length=100, null=True)
+    pin_code = models.CharField(max_length=10, null=True)
+    phone_number = models.CharField(max_length=15, null=True)
+
+    def _str_(self):
+        return f"Order by {self.user} - {self.product_name} ({self.status})"

@@ -28,7 +28,7 @@
 </div>
 
 
-<div class=" row category mt-3 py-3 ms-3" style="background:#e3e3e3;">
+{% comment %} <div class=" row category mt-3 py-3 ms-3" style="background:#e3e3e3;">
   <div class="fs-3 heading">Shop By <b class="txt-mycolor">Categories</b></div>
 {% for x in cdata %}
 <div class="col-lg-2 col-md-4 col-sm-12">
@@ -40,6 +40,29 @@
 </div>
 </div>
   {% endfor %}
+</div> {% endcomment %}
+
+
+
+<div class="row category mt-1 py-3 ms-3 bg-light">
+  <div class="fs-3 heading" style="color:dark;">Shop By <b>Categories</b></div>
+  {% for x in cdata %} 
+<div class="col-lg-2 col-md-4 col-sm-12">
+<div class="card mt-2">
+  <img src="/{{x.cpic}}" style="max-height:150px;"  class="card-img-top"/>
+  <div class="card-body">
+     <a href="/product/?cid={{x.id}}" style="text-decoration:none;" id="cname"><p class="text-center"><b>{{x.cname}}</b></p></a>
+     {% if request.user.is_authenticated and request.user.user_type == 'seller' and x.seller == request.user %}
+     <form method="POST" action="{% url 'delete_category' x.id %}" onsubmit="return confirm('Are you sure you want to delete this category?');">
+       {% csrf_token %}
+       <button type="submit" class="btn btn-danger btn-sm mt-1">Delete</button>
+     </form>
+     {% endif %}     
+  </div>
 </div>
+</div>
+  {% endfor %}
+</div>
+
 
 {% endblock content %}

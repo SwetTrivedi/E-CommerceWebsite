@@ -3,6 +3,14 @@
 {% block content %}
 <div class="col-sm-5" style="margin-top:50px;">
 <h2 style="color:rgb(224, 212, 134);">Welcome Seller :{{ request.user.username }}</h2>
+
+
+<a href="{% url 'category' %}" class="btn btn-primary mb-3">Add Category</a>
+  <a href="{% url 'subcategory' %}" class="btn btn-warning mb-3">Add Subcategory</a>
+
+
+
+
 <a href="{% url 'add_product' %}" class="btn btn-success mb-3">+ Add New Product</a><br>
 {% for product in products %}
   <div style="border: 1px solid #ccc; padding: 15px; margin: 10px; border-radius: 8px; max-width: 300px; display: inline-block; vertical-align: top;">

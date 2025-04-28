@@ -5,11 +5,12 @@ from django.shortcuts import  redirect
 import random
 from django.core.mail import send_mail
 from django.contrib.auth.decorators import login_required
-from .models import CustomUser,UserOTP,Category,myproduct,subcategory
-from .forms import Myform ,OTPForm,MyProductForm
+from .models import CustomUser,UserOTP,Category,myproduct,subcategory,Myorders,Cart
+from .forms import Myform ,OTPForm,MyProductForm,CategoryForm,SubcategoryForm,AddressForm
 from .task import send_seller_status_email
 from twilio.rest import Client
 from django.conf import settings
+from django.utils import timezone
 
 
 def send_otp_via_sms(phone_number, otp):
@@ -363,3 +364,304 @@ def verify_profile_update(request, pk):
     except CustomUser.DoesNotExist:
         messages.error(request, 'User not found')
         return redirect('home')
+
+
+
+
+
+
+
+@login_required
+def add_category(request):
+    if request.user.user_type != 'seller':
+        return redirect('home')
+    
+    if request.method == "POST":
+        form = CategoryForm(request.POST, request.FILES)
+        if form.is_valid():
+            category = form.save(commit=False)
+            category.seller = request.user
+            category.save()
+            return redirect('seller_dashboard')
+    else:
+        form = CategoryForm()
+    
+    return render(request, 'category.html', {'form': form})
+
+
+@login_required
+def add_subcategory(request):
+    if request.user.user_type != 'seller':
+        return HttpResponse("<script>alert('Only sellers can add subcategories');location.href='/'</script>")
+    
+    if request.method == 'POST':
+        form = SubcategoryForm(request.POST)
+        if form.is_valid():
+            form.save() 
+            return redirect('seller_dashboard')  
+    else:
+        form = SubcategoryForm()
+    
+    return render(request, 'subcategory.html',{'form':form})
+
+
+
+
+
+
+
+
+
+
+
+@login_required
+def Mycart(request):
+    if request.user.user_type != 'customer':
+        return HttpResponse("<script>alert('Only customers can access the cart');location.href='/'</script>")
+
+    if request.method == "GET" and request.GET.get('qt'):
+        qt = int(request.GET.get('qt'))
+        pname = request.GET.get('pname')
+        ppic = request.GET.get('ppic')
+        price = int(request.GET.get('price'))
+        total_price = qt * price
+
+        if qt > 0:
+            Cart.objects.create(
+                user=request.user,
+                product_name=pname,
+                quantity=qt,
+                price=price,
+                total_price=total_price,
+                product_picture=ppic,
+                added_date=timezone.now().date()
+            )
+            request.session['cartitem'] = Cart.objects.filter(user=request.user).count()
+            return HttpResponse("<script>alert('Your item was added successfully');location.href='/product/'</script>")
+        else:
+            return HttpResponse("<script>alert('Add product quantity to your cart');location.href='/product/'</script>")
+
+    return render(request, 'mycart.html')
+
+
+@login_required
+def cartitem(request):
+    if request.user.user_type != 'customer':
+        return HttpResponse("<script>alert('Only customers can view the cart');location.href='/'</script>")
+
+    cid = request.GET.get('cid')
+    cartdata = Cart.objects.filter(user=request.user)
+
+    if cid:
+        Cart.objects.filter(id=cid, user=request.user).delete()
+        request.session['cartitem'] = Cart.objects.filter(user=request.user).count()
+        return HttpResponse("<script>alert('Item successfully removed');location.href='/cartitem/'</script>")
+
+    return render(request, 'cartitem.html', {"cartdata": cartdata})
+
+from .forms import AddressForm 
+
+# @login_required
+# def myorder(request):
+#     if request.user.user_type != 'customer':
+#         return HttpResponse("<script>alert('Only customers can place orders');location.href='/'</script>")
+
+#     if request.method == 'POST':
+#         form = AddressForm(request.POST)
+#         if form.is_valid():
+#             address = form.cleaned_data['address']
+#             city = form.cleaned_data['city']
+#             state = form.cleaned_data['state']
+#             pin_code = form.cleaned_data['zip_code']
+#             phone_number = form.cleaned_data['phone_number']
+
+#             cart_items = Cart.objects.filter(user=request.user)
+#             for item in cart_items:
+#                 Myorders.objects.create(
+#                     user=request.user,
+#                     product_name=item.product_name,
+#                     quantity=item.quantity,
+#                     price=item.price,
+#                     total_price=item.total_price,
+#                     product_picture=item.product_picture,
+#                     status="Pending",
+#                     order_date=timezone.now().date(),
+#                     address=address,
+#                     city=city,
+#                     state=state,
+#                     pin_code=pin_code,
+#                     phone_number=phone_number,
+#                 )
+#             cart_items.delete()
+#             request.session['cartitem'] = 0
+#             return HttpResponse("<script>alert('Your order has been placed successfully!');location.href='/orderslist/'</script>")
+
+#     else:
+#         form = AddressForm()
+    
+#     return render(request, 'order.html', {'form': form})
+
+
+from .forms import AddressForm 
+from io import BytesIO
+from xhtml2pdf import pisa
+from django.template.loader import render_to_string
+import os
+from django.conf import settings
+def generate_order_pdf(order_list, total_amount):
+    if not order_list:
+        return None
+
+    html = render_to_string('order_reciept.html', {
+        'orders': order_list,
+        'user': order_list[0].user,  # use first order's user
+        'address': order_list[0].address,
+        'city': order_list[0].city,
+        'state': order_list[0].state,
+        'pin_code': order_list[0].pin_code,
+        'phone_number': order_list[0].phone_number,
+        'total_amount': total_amount,
+    })
+
+    pdf_file = BytesIO()
+    pisa_status = pisa.CreatePDF(html, dest=pdf_file)
+
+    if pisa_status.err:
+        return None
+
+    pdf_path = f'{settings.MEDIA_ROOT}/order_receipts/receipt_{order_list[0].user.id}.pdf'
+    os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
+
+    with open(pdf_path, 'wb') as f:
+        f.write(pdf_file.getvalue())
+
+    return pdf_path
+
+
+
+@login_required
+def myorder(request):
+    if request.user.user_type != 'customer':
+        return HttpResponse("<script>alert('Only customers can place orders');location.href='/'</script>")
+
+    if request.method == 'POST':
+        form = AddressForm(request.POST)
+        if form.is_valid():
+            address = form.cleaned_data['address']
+            city = form.cleaned_data['city']
+            state = form.cleaned_data['state']
+            pin_code = form.cleaned_data['pin_code']
+            phone_number = form.cleaned_data['phone_number']
+
+            cart_items = Cart.objects.filter(user=request.user)
+            total_amount = 0
+
+            # Create orders
+            order_list = []
+            for item in cart_items:
+                order = Myorders.objects.create(
+                    user=request.user,
+                    product_name=item.product_name,
+                    quantity=item.quantity,
+                    price=item.price,
+                    total_price=item.total_price,
+                    product_picture=item.product_picture,
+                    status="Pending",
+                    order_date=timezone.now().date(),
+                    address=address,
+                    city=city,
+                    state=state,
+                    pin_code=pin_code,
+                    phone_number=phone_number,
+                )
+                order_list.append(order)
+                total_amount += item.total_price
+
+            cart_items.delete()
+            request.session['cartitem'] = 0
+
+        
+            pdf_path = generate_order_pdf(order_list, total_amount)
+
+            if pdf_path:
+                with open(pdf_path, 'rb') as pdf_file:
+                    response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+                    response['Content-Disposition'] = f'inline; filename="receipt_{request.user.id}.pdf"'
+                    return response
+
+            return HttpResponse("<script>alert('Your order has been placed successfully!');location.href='/orderslist/'</script>")
+    
+    else:
+        form = AddressForm()
+
+    return render(request, 'order.html', {'form':form})
+
+
+
+
+
+
+
+
+
+@login_required
+def indexcart(request):
+    if request.user.user_type != 'customer':
+        return HttpResponse("<script>alert('Only customers can add items to cart');location.href='/'</script>")
+
+    if request.GET.get('qt'):
+        qt = int(request.GET.get('qt'))
+        pname = request.GET.get('pname')
+        ppic = request.GET.get('ppic')
+        price = int(request.GET.get('price'))
+        total_price = qt * price
+
+        if qt > 0:
+            Cart.objects.create(
+                user=request.user,
+                product_name=pname,
+                quantity=qt,
+                price=price,
+                total_price=total_price,
+                product_picture=ppic,
+                added_date=timezone.now().date()
+            )
+            request.session['cartitem'] = Cart.objects.filter(user=request.user).count()
+            return HttpResponse("<script>alert('Your item was added in cart');location.href='/home/'</script>")
+        else:
+            return HttpResponse("<script>alert('Add product quantity to your cart');location.href='/home/'</script>")
+
+    return render(request, 'indexcart.html')
+
+
+@login_required
+def orderslist(request):
+    if request.user.user_type != 'customer':
+        return HttpResponse("<script>alert('Only customers can view orders');location.href='/'</script>")
+
+    oid = request.GET.get('oid')
+
+    if oid:
+        Myorders.objects.filter(id=oid, user=request.user).delete()
+        return HttpResponse("<script>alert('Order canceled');location.href='/orderslist/'</script>")
+
+    pdata = Myorders.objects.filter(user=request.user, status="Pending")
+    adata = Myorders.objects.filter(user=request.user, status="Accepted")
+    ddata = Myorders.objects.filter(user=request.user, status="Delivered")
+
+    return render(request, 'orderlist.html', {
+        "pdata": pdata,
+        "adata": adata,
+        "ddata": ddata
+    })
+
+
+@login_required
+def delete_category(request, cid):
+    category = get_object_or_404(Category, id=cid, seller=request.user)
+    
+    if request.user.user_type != 'seller':
+        return HttpResponse("<script>alert('Unauthorized access');location.href='/'</script>")
+    
+    category.delete()
+    return redirect('seller_dashboard')

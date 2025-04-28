@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Order Receipt</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 8px; text-align: center; }
+        h1, h3 { text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Order Receipt</h1>
+    <h3>Customer: {{ user.first_name }} {{ user.last_name }} ({{ user.email }})</h3>
+    <p>Address: {{ address }}, {{ city }}, {{ state }}, {{ pin_code }}</p>
+    <p>Phone: {{ phone_number }}</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Price (each)</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.product_name }}</td>
+                <td>{{ order.quantity }}</td>
+                <td>{{ order.price }}</td>
+                <td>{{ order.total_price }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2 style="text-align: right;">Grand Total: ₹{{ total_amount }}</h2>
+</body>
+</html>

@@ -21,4 +21,12 @@ urlpatterns = [
     path('seller/delete/<int:pk>/', views.delete_product, name='delete_product'),
     path('admin/delete/<int:pk>/', views.delete_product_admin, name='delete_product_admin'),
     path('verify-profile/<int:pk>/', views.verify_profile_update, name='verify_profile_update'),
+    path('add-subcategory/', views.add_subcategory, name='subcategory'),
+    path('category/', views.add_category, name='category'),
+    path('delete-category/<int:cid>/', views.delete_category, name='delete_category'),
+    path('mycart/', views.Mycart, name='mycart'),
+    path('cartitem/', views.cartitem, name='cartitem'),
+    path('indexcart/', views.indexcart, name='indexcart'),
+    path('myorder/', views.myorder, name='myorder'),
+    path('orderslist/', views.orderslist, name='orderslist')
 ]
