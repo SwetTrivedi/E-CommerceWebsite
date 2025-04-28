@@ -129,9 +129,18 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER ='swettrivedi981@gmail.com'
-EMAIL_HOST_PASSWORD = 'jvfylodsctmcukov'
-DEFAULT_FROM_EMAIL = 'swettrivedi981@gmail.com'
+
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
+
+
+
 CAPTCHA_IMAGE_SIZE = (150, 50)
 CAPTCHA_FONT_SIZE = 36
 CAPTCHA_LENGTH = 4
@@ -146,10 +155,17 @@ CAPTCHA_NOISE_FUNCTIONS = (
 
 
 CAPTCHA_CHALLENGE_FUNCT = 'captcha.helpers.random_char_challenge'
-TWILIO_ACCOUNT_SID = 'AC8e91a2d8133757714be97366bbf6389d'
-TWILIO_AUTH_TOKEN = 'a1ec7f32d122bf2a6746e77963bcbdf1'
-TWILIO_PHONE_NUMBER = '+1 912 499 9388'
 
 
 
 SITE_URL = "http://127.0.0.1:8000"
+
+from dotenv import load_dotenv
+import os
+
+
+load_dotenv()
+
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
