@@ -2,6 +2,11 @@
 {% load static %}
 
 {% block content %}
+{% if messages %}
+{% for message in messages %}
+<p {% if message.tags %} class="alert alert-{{message.tags}} mb-5" {% endif %}>{{message}}</p>
+{% endfor %}
+{% endif %}
 <div class="mask d-flex justify-content-center align-items-center vh-100 gradient-custom-3">
     <div class="container">
         <div class="row d-flex justify-content-center align-items-center">

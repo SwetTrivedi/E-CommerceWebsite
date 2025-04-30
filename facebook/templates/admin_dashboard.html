@@ -48,7 +48,7 @@
     <h3 style="color:rgb(224, 212, 134);">{{ product.veg_name }}</h3>
     <p style="color:rgb(224, 212, 134);">Price: ₹{{ product.price }}</p>
     <p style="color:rgb(224, 212, 134);">Seller: {{ product.seller.username }}</p>
-    <a href="{% url 'delete_product_admin' product.pk %}">Delete</a>
+    <a href="{% url 'delete_pro_admin' product.id %}">Delete</a>
   </div>
 {% empty %}
   <p>No products in the system.</p>

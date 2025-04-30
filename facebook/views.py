@@ -35,48 +35,56 @@ def about(request):
 def generate_otp():
     return str(random.randint(100000, 999999))
 
+from django.contrib.auth import get_user_model
+
+CustomUser = get_user_model()
 
 def verify_otp(request):
     username = request.session.get('username')
-    if not username:
-        return redirect('signup')
+    email = request.session.get('email')
+    password = request.session.get('password')
+    role = request.session.get('role')
+
+    if not username or not email or not password or not role:
+        return redirect('register_user')
 
     form = OTPForm(request.POST or None)
 
     if request.method == "POST":
         if form.is_valid():
             entered_otp = form.cleaned_data['otp']
-            user = CustomUser.objects.filter(username=username).first()
-            if user:
-                real_otp = UserOTP.objects.filter(user=user).first()
-                if real_otp:
-                    if real_otp.is_expired:
-                        messages.error(request, "OTP has expired. Please request a new one.")
-                    elif entered_otp == real_otp.otp:
-                        user.is_active = True
-                        user.save()
-                        real_otp.delete()
-                        return redirect('login')
-                    else:
-                        messages.error(request, "Invalid OTP. Please try again.")
+            real_otp = request.session.get('otp')
+
+            if real_otp:
+                if entered_otp == real_otp:
+                    user = CustomUser.objects.create_user(
+                        username=username,
+                        email=email,
+                        password=password,
+                        user_type=role,
+                        is_verified=True,
+                        is_active=True
+                    )
+                    messages.success(request, "OTP verified. You can now log in.")
+                    request.session.flush() 
+                    return redirect('login')
+                else:
+                    messages.error(request, "Invalid OTP. Please try again.")
     
     if request.method == "GET" and 'resend_otp' in request.GET:
-        user = CustomUser.objects.filter(username=username).first()
-        if user:
-            otp = generate_otp()
-            UserOTP.objects.update_or_create(user=user, defaults={'otp': otp})
-            send_mail(
-                "Your OTP Code",
-                f"Your OTP code is {otp}",
-                'from@example.com', 
-                [user.email],
-                fail_silently=False,
-            )
-            messages.success(request, "A new OTP has been sent to your email.")
+        otp = generate_otp()
+        request.session['otp'] = otp
+        send_mail(
+            "Your OTP Code",
+            f"Your OTP code is {otp}",
+            'from@example.com', 
+            [email],
+            fail_silently=False,
+        )
+        messages.success(request, "A new OTP has been sent to your email.")
         return redirect('verify_otp')  
 
     return render(request, 'verify_otp.html', {'form': form})
-
 
 def register_user(request):
     if request.method == "POST":
@@ -84,26 +92,26 @@ def register_user(request):
         email = request.POST['email']
         password = request.POST['password']
         role = request.POST['role']
-        phone_number = request.POST.get('phone')
+
+        if CustomUser.objects.filter(email=email).exists():
+            messages.error(request, "An account with this email already exists.")
+            return redirect('register_user')
 
         if role == 'customer':
-            user = CustomUser.objects.create_user(
-                username=username,
-                email=email,
-                password=password,
-                user_type='customer',
-                is_verified=False  # Initially unverified
-            )
             otp = generate_otp()
-            UserOTP.objects.create(user=user, otp=otp)
+            request.session['otp'] = otp
+            request.session['username'] = username
+            request.session['email'] = email
+            request.session['password'] = password
+            request.session['role'] = role
+
             send_mail(
                 subject='Your OTP for Account Verification',
                 message=f'Your OTP is {otp}',
                 from_email='your_email@gmail.com',
-                recipient_list=[user.email],
+                recipient_list=[email],
             )
-            request.session['username'] = user.username
-            messages.success(request, "OTP sent to your email.")
+            messages.success(request, "OTP sent to your email. Please verify.")
             return redirect('verify_otp')
 
         elif role == 'seller':
@@ -112,14 +120,17 @@ def register_user(request):
                 email=email,
                 password=password,
                 user_type='seller',
-                is_verified=False  # Initially unverified
+                is_verified=False,
+                is_active=True
             )
-            otp = generate_otp()
-            UserOTP.objects.create(user=user, otp=otp)
-            send_otp_via_sms(phone_number, otp)
-            request.session['username'] = user.username
-            messages.success(request, "OTP sent to your phone.")
-            return redirect('verify_otp')
+            # otp = generate_otp()
+            # UserOTP.objects.create(user=user, otp=otp)
+            # send_otp_via_sms(phone_number, otp)
+            # request.session['username'] = user.username
+            # messages.success(request, "OTP sent to your phone.")
+            # return redirect('verify_otp')
+            messages.success(request, "Registration successful. Please wait for admin approval.")
+            return redirect('register_user')
 
         elif role == 'admin':
             user = CustomUser.objects.create_superuser(
@@ -127,8 +138,10 @@ def register_user(request):
                 email=email,
                 password=password,
                 user_type='admin',
-                is_verified=True
+                is_verified=True,
+                is_active=True
             )
+            messages.success(request, "Admin registered successfully. You can log in.")
             return redirect('login')
 
         else:
@@ -136,7 +149,6 @@ def register_user(request):
             return redirect('register_user')
 
     return render(request, 'register_user.html')
-
 
 def user_login(request):
     form = Myform(request.POST or None)
@@ -156,31 +168,44 @@ def user_login(request):
                         'error': 'Invalid role selected for this account.'
                     })
 
-                login(request, user)
-
                 if role == 'seller':
+                    if not user.is_verified:
+                        return HttpResponse("Seller account not verified by admin yet.")
+                    login(request, user)
                     return redirect('seller_dashboard')
+
                 elif role == 'customer':
+                    if not user.is_active:
+                        otp = generate_otp()
+                        UserOTP.objects.update_or_create(user=user, defaults={'otp': otp})
+                        send_mail(
+                            subject='Your OTP for Account Verification',
+                            message=f'Your OTP is {otp}',
+                            from_email='your_email@gmail.com',
+                            recipient_list=[user.email],
+                        )
+                        request.session['username'] = username
+                        messages.error(request, "Account not verified. OTP sent to your email.")
+                        return redirect('verify_otp')
+                    login(request, user)
                     return redirect('customer_dashboard')
+
                 elif role == 'admin':
+                    login(request, user)
                     return redirect('admin_dashboard')
-                else:
-                    return render(request, 'login.html', {
-                        'form': form,
-                        'error': 'Invalid role.'
-                    })
-            else:
-                return render(request, 'login.html', {
-                    'form': form,
-                    'error': 'Invalid username or password.'
-                })
+
+            return render(request, 'login.html', {
+                'form': form,
+                'error': 'Invalid username or password.'
+            })
         else:
             return render(request, 'login.html', {
                 'form': form,
                 'error': 'Invalid form submission.'
             })
 
-    return render(request, 'login.html', {'form': form})
+    return render(request, 'login.html',{'form':form})
+
 
 
 
@@ -304,8 +329,8 @@ def delete_product(request, pk):
 
 @login_required
 @admin_required
-def delete_product_admin(request, pk):
-    product = get_object_or_404(myproduct, pk=pk)
+def delete_product_admin(request, pid):
+    product = get_object_or_404(myproduct, id=pid)
     product.delete()
     return redirect('admin_dashboard')
 
@@ -460,46 +485,6 @@ def cartitem(request):
     return render(request, 'cartitem.html', {"cartdata": cartdata})
 
 from .forms import AddressForm 
-
-# @login_required
-# def myorder(request):
-#     if request.user.user_type != 'customer':
-#         return HttpResponse("<script>alert('Only customers can place orders');location.href='/'</script>")
-
-#     if request.method == 'POST':
-#         form = AddressForm(request.POST)
-#         if form.is_valid():
-#             address = form.cleaned_data['address']
-#             city = form.cleaned_data['city']
-#             state = form.cleaned_data['state']
-#             pin_code = form.cleaned_data['zip_code']
-#             phone_number = form.cleaned_data['phone_number']
-
-#             cart_items = Cart.objects.filter(user=request.user)
-#             for item in cart_items:
-#                 Myorders.objects.create(
-#                     user=request.user,
-#                     product_name=item.product_name,
-#                     quantity=item.quantity,
-#                     price=item.price,
-#                     total_price=item.total_price,
-#                     product_picture=item.product_picture,
-#                     status="Pending",
-#                     order_date=timezone.now().date(),
-#                     address=address,
-#                     city=city,
-#                     state=state,
-#                     pin_code=pin_code,
-#                     phone_number=phone_number,
-#                 )
-#             cart_items.delete()
-#             request.session['cartitem'] = 0
-#             return HttpResponse("<script>alert('Your order has been placed successfully!');location.href='/orderslist/'</script>")
-
-#     else:
-#         form = AddressForm()
-    
-#     return render(request, 'order.html', {'form': form})
 
 
 from .forms import AddressForm 
