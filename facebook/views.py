@@ -445,11 +445,16 @@ def Mycart(request):
         return HttpResponse("<script>alert('Only customers can access the cart');location.href='/'</script>")
 
     if request.method == "GET" and request.GET.get('qt'):
-        qt = int(request.GET.get('qt'))
+        qt = int(request.GET.get('qt',0))
         pname = request.GET.get('pname')
         ppic = request.GET.get('ppic')
         price = int(request.GET.get('price'))
         total_price = qt * price
+        product = myproduct.objects.get(veg_name=pname)
+        if qt > product.stock:
+            return HttpResponse(f"<script>alert('Only {product.stock} item(s) in stock'); location.href='/product/';</script>")
+        if qt <= 0:
+            return HttpResponse("<script>alert('Add a valid product quantity'); location.href='/product/';</script>")
 
         if qt > 0:
             Cart.objects.create(
@@ -462,6 +467,9 @@ def Mycart(request):
                 added_date=timezone.now().date()
             )
             request.session['cartitem'] = Cart.objects.filter(user=request.user).count()
+            product.stock -= qt
+            product.save()
+
             return HttpResponse("<script>alert('Your item was added successfully');location.href='/product/'</script>")
         else:
             return HttpResponse("<script>alert('Add product quantity to your cart');location.href='/product/'</script>")

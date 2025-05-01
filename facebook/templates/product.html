@@ -18,6 +18,7 @@
     </div>
 <div class="col-sm-9">
 <div class="row">
+
   {% for x in pdata %}
         <div class="col-lg-3 col-md-6 col-sm-12">
             <!-- start product -->
@@ -30,6 +31,9 @@
                     <br/><s><i class="fa-solid fa-indian-rupee-sign"></i>{{x.price}}</s>
                     <b><i class="fa-solid fa-indian-rupee-sign"></i>
                         {{x.discount_price}}</b>
+                    {% if x.stock == 0 %}
+                        <p style="color: red;">Out of Stock</p>
+                    {% endif %}
                     <form method="get" action="/mycart/">
                     <div class="input-group">
                     <b class="input-group-text" onclick="funm{{x.id}}()">
@@ -55,9 +59,13 @@
                 var i{{x.id}}=0;
                   var txtc{{x.id}}=document.getElementById("txtcard{{x.id}}");
                   function funp{{x.id}}()
-                  {
-                  i{{x.id}}++;
-                  txtc{{x.id}}.value=i{{x.id}};
+                   {
+                    if (i{{x.id}} < {{x.stock}}) {
+                      i{{x.id}}++;
+                      txtc{{x.id}}.value = i{{x.id}};
+                    } else {
+                      alert("Only {{x.stock}} items left in stock!");
+                    }
                   }
                   function funm{{x.id}}()
                   {

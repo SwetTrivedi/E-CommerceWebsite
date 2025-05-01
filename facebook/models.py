@@ -52,9 +52,11 @@ class myproduct(models.Model):
     discount_price=models.IntegerField()
     product_pic=models.ImageField(upload_to='static/product/',null=True)
     total_discount=models.IntegerField()
-    product_quantity=models.CharField(max_length=200)
+    product_quantity = models.CharField(max_length=200)
+    stock = models.PositiveIntegerField(default=0)
+    # is_out_of_stock = models.BooleanField(default=False)
     pdate=models.DateField()
-
+    
 
 
 class Cart(models.Model):
